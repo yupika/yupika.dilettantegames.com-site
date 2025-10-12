@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(systemctl status:*)",
+      "Bash(service nginx:*)",
+      "Bash(sudo netstat:*)",
+      "Bash(ss:*)",
+      "Read(//etc/nginx/**)",
+      "Bash(cat:*)",
+      "Bash(awk:*)",
+      "Bash(xargs -r kill)",
+      "Bash(sudo dnf install:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
