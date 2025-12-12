@@ -23,9 +23,9 @@
 - Vite v4.4.2
 
 ## サーバー情報
-- **IPアドレス**: 160.248.2.200
+- **IPアドレス**: 116.80.43.241
 - **ドメイン**: yupika.dilettantegames.net
-- **URL**: http://yupika.dilettantegames.net/
+- **URL**: https://yupika.dilettantegames.net/
 
 ## プロジェクト構造
 ```
