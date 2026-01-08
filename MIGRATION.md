@@ -2,7 +2,7 @@
 
 ## 前提条件
 - 新しいインスタンス（4GB RAM推奨）
-- AlmaLinux 9 または同等のOS
+- Ubuntu 24.04 LTS または同等のOS
 - SSH接続可能
 
 ## 移行手順
@@ -11,43 +11,68 @@
 
 ```bash
 # システムアップデート
-sudo dnf update -y
+sudo apt update && sudo apt upgrade -y
 
 # Node.js v18のインストール
-sudo dnf module reset nodejs -y
-sudo dnf module install nodejs:18 -y
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
 
 # Nginxのインストール
-sudo dnf install -y nginx
+sudo apt install -y nginx
 
 # Gitのインストール
-sudo dnf install -y git
+sudo apt install -y git
+
+# ビルドツールのインストール
+sudo apt install -y build-essential
 ```
 
-### 2. アプリケーションのセットアップ
+### 2. Bunのインストール
+
+```bash
+# Bunをインストール
+curl -fsSL https://bun.sh/install | bash
+source ~/.bashrc
+```
+
+### 3. アプリケーションのセットアップ
 
 ```bash
 # ホームディレクトリに移動
 cd ~
 
 # リポジトリのクローン
-git clone <リポジトリURL> homepage
+git clone <リポジトリURL> website-yupika
 
 # ディレクトリに移動
-cd homepage
+cd website-yupika/yupika.dilettantegames.com-site
 
-# 依存パッケージのインストール
-npm install
+# 依存パッケージのインストール（メインサイト）
+~/.bun/bin/bun install
 
-# プロダクションビルド
-npm run build
+# U-REIの依存パッケージのインストール
+cd u-rei
+~/.bun/bin/bun install
+cd ..
+
+# プロダクションビルド（メインサイト）
+~/.bun/bin/bun run build
+
+# U-REIのビルド
+cd u-rei
+~/.bun/bin/bun run build
+cd ..
 ```
 
-### 3. Nginx設定
+### 4. Nginx設定
 
 ```bash
 # nginx設定ファイルをコピー
-sudo cp nginx/yupika.dilettantegames.net.conf /etc/nginx/conf.d/
+sudo cp nginx/yupika.dilettantegames.net.conf /etc/nginx/sites-available/
+sudo ln -s /etc/nginx/sites-available/yupika.dilettantegames.net.conf /etc/nginx/sites-enabled/
+
+# デフォルト設定を無効化（必要に応じて）
+sudo rm /etc/nginx/sites-enabled/default
 
 # 設定のテスト
 sudo nginx -t
@@ -57,7 +82,7 @@ sudo systemctl enable nginx
 sudo systemctl start nginx
 ```
 
-### 4. Systemdサービスの作成
+### 5. Systemdサービスの作成
 
 アプリケーションを自動起動させるため、systemdサービスを作成します。
 
@@ -75,9 +100,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=alma
-WorkingDirectory=/home/alma/homepage
-ExecStart=/usr/bin/node server.js
+User=ubuntu
+WorkingDirectory=/home/ubuntu/website-yupika/yupika.dilettantegames.com-site
+ExecStart=/home/ubuntu/.bun/bin/bun server.js
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -104,7 +129,7 @@ sudo systemctl start homepage
 sudo systemctl status homepage
 ```
 
-### 5. スワップファイルの作成（推奨）
+### 6. スワップファイルの作成（推奨）
 
 メモリ不足時のバッファとして2GBのスワップを作成：
 
@@ -125,22 +150,22 @@ sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-### 6. ファイアウォール設定（必要に応じて）
+### 7. ファイアウォール設定（必要に応じて）
 
 ```bash
-# HTTP (80) とHTTPS (443) を許可
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --reload
+# UFWが有効な場合
+sudo ufw allow 'Nginx Full'
+sudo ufw allow ssh
+sudo ufw enable
 ```
 
-### 7. DNS設定の変更
+### 8. DNS設定の変更
 
 1. DNSプロバイダーの管理画面にログイン
 2. `yupika.dilettantegames.net` のAレコードを新インスタンスのIPアドレスに変更
 3. TTLが短い場合は数分、長い場合は数時間で反映
 
-### 8. 動作確認
+### 9. 動作確認
 
 ```bash
 # アプリケーションが起動しているか確認
@@ -162,7 +187,7 @@ curl http://localhost:3000/health
 curl http://localhost/
 ```
 
-### 9. ログの確認
+### 10. ログの確認
 
 ```bash
 # アプリケーションログ
@@ -184,11 +209,11 @@ sudo tail -f /var/log/nginx/error.log
 sudo journalctl -u homepage -n 50
 
 # ビルドファイルが存在するか確認
-ls -la /home/alma/homepage/build/
+ls -la /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/build/
 
 # 再ビルド
-cd /home/alma/homepage
-npm run build
+cd /home/ubuntu/website-yupika/yupika.dilettantegames.com-site
+~/.bun/bin/bun run build
 sudo systemctl restart homepage
 ```
 
@@ -222,14 +247,16 @@ ps aux --sort=-%mem | head -10
 1. 旧インスタンスでサービスを停止
    ```bash
    # 旧インスタンスで実行
-   pkill -f "node server.js"
+   sudo systemctl stop homepage
+   pkill -f "bun server.js"
    ```
 
 2. 数日間様子を見て問題なければ、旧インスタンスを削除
 
 ## メモ
 
-- 現在のIPアドレス（旧）: 160.248.2.200
 - ドメイン: yupika.dilettantegames.net
 - アプリケーションポート: 3000
-- Webサーバーポート: 80
+- Webサーバーポート: 80/443
+- ユーザー: ubuntu
+- アプリケーションパス: /home/ubuntu/website-yupika/yupika.dilettantegames.com-site

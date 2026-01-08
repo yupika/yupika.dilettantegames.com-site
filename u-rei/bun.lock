@@ -9,7 +9,6 @@
         "@auth/sveltekit": "^1.11.1",
         "@lucia-auth/adapter-sqlite": "^3.0.0",
         "arctic": "^3.7.0",
-        "better-sqlite3": "^12.5.0",
         "lucia": "^3.0.0",
         "sharp": "^0.33.0",
       },

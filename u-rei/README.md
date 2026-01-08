@@ -307,7 +307,7 @@ UPDATE users SET status='active' WHERE google_id='<google_id>';
 
 ## 仕様書
 
-詳細な仕様は`/home/alma/homepage/mddocument/U-REI_SPEC.md`を参照してください。
+詳細な仕様は`../mddocument/U-REI_SPEC.md`を参照してください。
 
 ## ライセンス
 

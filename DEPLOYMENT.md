@@ -14,22 +14,28 @@
 ## サーバー要件
 
 ### 必須環境
-- **OS**: AlmaLinux 9 / Rocky Linux 9 / RHEL 9系
+- **OS**: Ubuntu 24.04 LTS / Ubuntu 22.04 LTS
 - **Node.js**: v18.17.1以上
+- **Bun**: 最新版
 - **メモリ**: 1GB以上推奨
 - **ディスク**: 5GB以上の空き容量
 - **ポート**: 3000番ポート（内部）
 
 ### 必要なツール
 ```bash
-# ビルドツールのインストール
-sudo dnf install -y make gcc-c++ git
+# システムアップデート
+sudo apt update && sudo apt upgrade -y
 
-# Node.jsのインストール（nvmを使用）
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+# ビルドツールのインストール
+sudo apt install -y build-essential git curl
+
+# Node.jsのインストール
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Bunのインストール
+curl -fsSL https://bun.sh/install | bash
 source ~/.bashrc
-nvm install 18.17.1
-nvm use 18.17.1
 ```
 
 ## 初回デプロイ手順
@@ -38,23 +44,19 @@ nvm use 18.17.1
 
 ```bash
 cd ~
-git clone <repository-url> homepage
-cd homepage
+git clone <repository-url> website-yupika
+cd website-yupika/yupika.dilettantegames.com-site
 ```
 
 ### ステップ 2: 依存関係のインストール
 
 ```bash
 # メインサイトの依存関係
-npm install
-
-# Bunのインストール（U-REI用）
-curl -fsSL https://bun.sh/install | bash
-source ~/.bashrc
+~/.bun/bin/bun install
 
 # U-REIの依存関係
 cd u-rei
-bun install
+~/.bun/bin/bun install
 cd ..
 ```
 
@@ -74,14 +76,14 @@ U-REIの`.env`ファイルを作成:
 cd u-rei
 cat > .env << 'ENVEOF'
 # Google OAuth credentials
-GOOGLE_CLIENT_ID=あなたのクライアントID
-GOOGLE_CLIENT_SECRET=あなたのクライアントシークレット
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
 
 # Auth.js secret (以下のコマンドで生成)
-AUTH_SECRET=生成したシークレット
+AUTH_SECRET=generate-this-with-openssl
 
 # Auth URL (本番環境のURL)
-AUTH_URL=http://yupika.dilettantegames.net/u-rei
+AUTH_URL=https://yupika.dilettantegames.net/u-rei
 ENVEOF
 
 # AUTH_SECRETを生成
@@ -95,39 +97,28 @@ openssl rand -base64 32
 
 ```bash
 # メインサイトのビルド
-npm run build
+~/.bun/bin/bun run build
 
 # U-REIのビルド
 cd u-rei
-bun run build
+~/.bun/bin/bun run build
 cd ..
 ```
 
-### ステップ 6: Node.jsバイナリの配置（SELinux対応）
-
-SELinuxが有効な環境では、ホームディレクトリ内のバイナリ実行が制限されます。
-Node.jsを`/usr/local/bin`にコピーします：
-
-```bash
-sudo cp ~/.nvm/versions/node/v18.17.1/bin/node /usr/local/bin/node
-sudo chmod +x /usr/local/bin/node
-/usr/local/bin/node --version  # 確認
-```
-
-### ステップ 7: systemdサービスの設定
+### ステップ 6: systemdサービスの設定
 
 詳細は[systemdサービス設定](#systemdサービス設定)セクションを参照してください。
 
-### ステップ 8: サービスの起動
+### ステップ 7: サービスの起動
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable svelte-homepage.service
-sudo systemctl start svelte-homepage.service
-sudo systemctl status svelte-homepage.service
+sudo systemctl enable homepage.service
+sudo systemctl start homepage.service
+sudo systemctl status homepage.service
 ```
 
-### ステップ 9: 動作確認
+### ステップ 8: 動作確認
 
 ```bash
 # メインサイト
@@ -137,7 +128,7 @@ curl http://localhost:3000/
 curl http://localhost:3000/u-rei/
 
 # ログ確認
-sudo journalctl -u svelte-homepage.service -f
+sudo journalctl -u homepage.service -f
 ```
 
 ## Google OAuth設定
@@ -169,7 +160,7 @@ U-REI SNSはGoogle OAuthで認証を行います。以下の手順で設定し�
 4. 名前: U-REI SNS Client
 5. 承認済みのリダイレクトURIを追加:
    ```
-   http://yupika.dilettantegames.net/u-rei/auth/callback/google
+   https://yupika.dilettantegames.net/u-rei/auth/callback/google
    ```
    ※本番環境のドメインに合わせて変更してください
 6. 「作成」をクリック
@@ -177,7 +168,7 @@ U-REI SNSはGoogle OAuthで認証を行います。以下の手順で設定し�
 ### 4. 認証情報の保存
 
 作成後に表示される**クライアントID**と**クライアントシークレット**をコピーして、
-`/home/alma/homepage/u-rei/.env`ファイルに貼り付けます。
+`/home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei/.env`ファイルに貼り付けます。
 
 ```bash
 GOOGLE_CLIENT_ID=xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
@@ -186,7 +177,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ### 5. systemdサービスにも環境変数を設定
 
-`/etc/systemd/system/svelte-homepage.service`ファイルにも同じ認証情報を設定します（後述）。
+`/etc/systemd/system/homepage.service`ファイルにも同じ認証情報を設定します（後述）。
 
 ## systemdサービス設定
 
@@ -195,38 +186,38 @@ systemdサービスファイルを作成して、アプリケーションを自�
 ### サービスファイルの作成
 
 ```bash
-sudo nano /etc/systemd/system/svelte-homepage.service
+sudo nano /etc/systemd/system/homepage.service
 ```
 
 以下の内容を貼り付けます：
 
 ```ini
 [Unit]
-Description=Svelte Homepage & U-REI SNS
+Description=Yupika Homepage & U-REI SNS
 After=network.target
 
 [Service]
 Type=simple
-User=alma
-WorkingDirectory=/home/alma/homepage
+User=ubuntu
+WorkingDirectory=/home/ubuntu/website-yupika/yupika.dilettantegames.com-site
 Environment="NODE_ENV=production"
 Environment="GOOGLE_CLIENT_ID=あなたのクライアントID"
 Environment="GOOGLE_CLIENT_SECRET=あなたのクライアントシークレット"
 Environment="AUTH_SECRET=生成したシークレット"
-Environment="AUTH_URL=http://yupika.dilettantegames.net/u-rei"
-ExecStart=/usr/local/bin/node server.js
+Environment="AUTH_URL=https://yupika.dilettantegames.net/u-rei"
+ExecStart=/home/ubuntu/.bun/bin/bun server.js
 Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=svelte-homepage
+SyslogIdentifier=homepage
 
 [Install]
 WantedBy=multi-user.target
 ```
 
 **重要**: 以下の値を実際の値に置き換えてください：
-- `User`: 実行ユーザー名（現在の例では`alma`）
+- `User`: 実行ユーザー名（現在の例では`ubuntu`）
 - `WorkingDirectory`: プロジェクトのパス
 - `GOOGLE_CLIENT_ID`: Google OAuthクライアントID
 - `GOOGLE_CLIENT_SECRET`: Google OAuthクライアントシークレット
@@ -240,29 +231,29 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 
 # サービスを有効化（自動起動設定）
-sudo systemctl enable svelte-homepage.service
+sudo systemctl enable homepage.service
 
 # サービスを起動
-sudo systemctl start svelte-homepage.service
+sudo systemctl start homepage.service
 
 # ステータス確認
-sudo systemctl status svelte-homepage.service
+sudo systemctl status homepage.service
 ```
 
 ### サービスの管理コマンド
 
 ```bash
 # サービスの再起動
-sudo systemctl restart svelte-homepage.service
+sudo systemctl restart homepage.service
 
 # サービスの停止
-sudo systemctl stop svelte-homepage.service
+sudo systemctl stop homepage.service
 
 # ログの確認
-sudo journalctl -u svelte-homepage.service -n 50
+sudo journalctl -u homepage.service -n 50
 
 # ログをリアルタイムで監視
-sudo journalctl -u svelte-homepage.service -f
+sudo journalctl -u homepage.service -f
 ```
 
 ## 更新・再デプロイ
@@ -272,7 +263,7 @@ sudo journalctl -u svelte-homepage.service -f
 ### ステップ 1: 最新コードの取得
 
 ```bash
-cd /home/alma/homepage
+cd /home/ubuntu/website-yupika/yupika.dilettantegames.com-site
 git pull origin main
 ```
 
@@ -280,11 +271,11 @@ git pull origin main
 
 ```bash
 # メインサイト
-npm install
+~/.bun/bin/bun install
 
 # U-REI
 cd u-rei
-bun install
+~/.bun/bin/bun install
 npm rebuild better-sqlite3
 cd ..
 ```
@@ -293,20 +284,20 @@ cd ..
 
 ```bash
 # メインサイト
-npm run build
+~/.bun/bin/bun run build
 
 # U-REI
 cd u-rei
 rm -rf build .svelte-kit
-bun run build
+~/.bun/bin/bun run build
 cd ..
 ```
 
 ### ステップ 4: サービス再起動
 
 ```bash
-sudo systemctl restart svelte-homepage.service
-sudo systemctl status svelte-homepage.service
+sudo systemctl restart homepage.service
+sudo systemctl status homepage.service
 ```
 
 ### ステップ 5: 動作確認
@@ -317,7 +308,7 @@ curl -I http://localhost:3000/
 curl -I http://localhost:3000/u-rei/
 
 # ログ確認
-sudo journalctl -u svelte-homepage.service -n 20
+sudo journalctl -u homepage.service -n 20
 ```
 
 ## トラブルシューティング
@@ -329,17 +320,17 @@ sudo journalctl -u svelte-homepage.service -n 20
 **確認事項**:
 ```bash
 # ログを確認
-sudo journalctl -u svelte-homepage.service -n 50 --no-pager
+sudo journalctl -u homepage.service -n 50 --no-pager
 
 # ビルドファイルの存在確認
-ls -la /home/alma/homepage/build/
-ls -la /home/alma/homepage/u-rei/build/
+ls -la /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/build/
+ls -la /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei/build/
 
-# Node.jsバイナリの確認
-/usr/local/bin/node --version
+# Bunバイナリの確認
+~/.bun/bin/bun --version
 
 # 権限確認
-ls -la /home/alma/homepage/server.js
+ls -la /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/server.js
 ```
 
 **解決方法**:
@@ -353,10 +344,10 @@ ls -la /home/alma/homepage/server.js
 
 **解決方法**:
 ```bash
-cd /home/alma/homepage/u-rei
+cd /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei
 npm rebuild better-sqlite3
 cd ..
-sudo systemctl restart svelte-homepage.service
+sudo systemctl restart homepage.service
 ```
 
 ### データベースエラー
@@ -365,9 +356,9 @@ sudo systemctl restart svelte-homepage.service
 
 **解決方法**:
 ```bash
-mkdir -p /home/alma/homepage/u-rei/data
-chmod 755 /home/alma/homepage/u-rei/data
-sudo systemctl restart svelte-homepage.service
+mkdir -p /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei/data
+chmod 755 /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei/data
+sudo systemctl restart homepage.service
 ```
 
 ### OAuth認証エラー
@@ -377,47 +368,26 @@ sudo systemctl restart svelte-homepage.service
 **解決方法**:
 1. `.env`ファイルの確認:
    ```bash
-   cat /home/alma/homepage/u-rei/.env
+   cat /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei/.env
    ```
 
 2. systemdサービスファイルの環境変数確認:
    ```bash
-   sudo cat /etc/systemd/system/svelte-homepage.service | grep Environment
+   sudo cat /etc/systemd/system/homepage.service | grep Environment
    ```
 
 3. Google Cloud Consoleでリダイレクト URIを確認:
-   - `http://your-domain.com/u-rei/auth/callback/google`が正しく設定されているか
+   - `https://your-domain.com/u-rei/auth/callback/google`が正しく設定されているか
 
 4. 環境変数を修正した後は必ずリビルド:
    ```bash
-   cd /home/alma/homepage/u-rei
+   cd /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei
    rm -rf build .svelte-kit
-   bun run build
+   ~/.bun/bin/bun run build
    cd ..
    sudo systemctl daemon-reload
-   sudo systemctl restart svelte-homepage.service
+   sudo systemctl restart homepage.service
    ```
-
-### SELinuxエラー
-
-**症状**: `Permission denied`エラー、AVC deniedがログに表示
-
-**解決方法**:
-```bash
-# 一時的な確認（SELinuxを無効化）
-sudo setenforce 0
-# サービスが起動するか確認
-
-# 恒久的な解決策: バイナリを/usr/local/binに配置
-sudo cp ~/.nvm/versions/node/v18.17.1/bin/node /usr/local/bin/node
-sudo chmod +x /usr/local/bin/node
-
-# SELinuxを再度有効化
-sudo setenforce 1
-
-# サービス再起動
-sudo systemctl restart svelte-homepage.service
-```
 
 ### ポート3000が使用中
 
@@ -432,7 +402,7 @@ sudo lsof -i :3000
 sudo kill <PID>
 
 # またはsystemdサービスを停止
-sudo systemctl stop svelte-homepage.service
+sudo systemctl stop homepage.service
 ```
 
 ## リバースプロキシの設定（Nginx）
@@ -442,7 +412,7 @@ sudo systemctl stop svelte-homepage.service
 ### Nginxのインストール
 
 ```bash
-sudo dnf install -y nginx
+sudo apt install -y nginx
 sudo systemctl enable nginx
 sudo systemctl start nginx
 ```
@@ -450,7 +420,7 @@ sudo systemctl start nginx
 ### Nginx設定例
 
 ```bash
-sudo nano /etc/nginx/conf.d/homepage.conf
+sudo nano /etc/nginx/sites-available/homepage.conf
 ```
 
 ```nginx
@@ -473,6 +443,9 @@ server {
 ```
 
 ```bash
+# シンボリックリンクを作成
+sudo ln -s /etc/nginx/sites-available/homepage.conf /etc/nginx/sites-enabled/
+
 # 設定のテスト
 sudo nginx -t
 
@@ -487,14 +460,13 @@ Let's Encryptの無料SSL証明書を使ってHTTPS化します。
 ### 1. certbotのインストール
 
 ```bash
-sudo dnf install -y certbot python3-certbot-nginx
+sudo apt install -y certbot python3-certbot-nginx
 ```
 
 ### 2. ファイアウォールでHTTPSを許可
 
 ```bash
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --reload
+sudo ufw allow 'Nginx Full'
 ```
 
 ### 3. SSL証明書の取得
@@ -514,8 +486,8 @@ Let's Encrypt証明書は90日で期限切れになります。自動更新を�
 
 ```bash
 # 自動更新タイマーを開始
-sudo systemctl start certbot-renew.timer
-sudo systemctl enable certbot-renew.timer
+sudo systemctl start certbot.timer
+sudo systemctl enable certbot.timer
 
 # タイマーの確認
 sudo systemctl list-timers | grep certbot
@@ -581,44 +553,42 @@ HTTPS化後、Google OAuthのリダイレクトURIを更新する必要があり
    ```
 5. U-REIをリビルドしてサービス再起動：
    ```bash
-   cd /home/alma/homepage/u-rei
+   cd /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei
    rm -rf build .svelte-kit
-   bun run build
+   ~/.bun/bin/bun run build
    cd ..
    sudo systemctl daemon-reload
-   sudo systemctl restart svelte-homepage.service
+   sudo systemctl restart homepage.service
    ```
 
 ## セキュリティ考慮事項
 
 1. **環境変数の保護**
    ```bash
-   chmod 600 /home/alma/homepage/u-rei/.env
-   sudo chmod 600 /etc/systemd/system/svelte-homepage.service
+   chmod 600 /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei/.env
+   sudo chmod 600 /etc/systemd/system/homepage.service
    ```
 
 2. **ファイアウォール設定**
    ```bash
-   # 外部からポート3000への直接アクセスを制限
-   sudo firewall-cmd --permanent --remove-port=3000/tcp
-   
-   # HTTP/HTTPSは許可
-   sudo firewall-cmd --permanent --add-service=http
-   sudo firewall-cmd --permanent --add-service=https
-   
-   sudo firewall-cmd --reload
+   # UFWの有効化
+   sudo ufw default deny incoming
+   sudo ufw default allow outgoing
+   sudo ufw allow ssh
+   sudo ufw allow 'Nginx Full'
+   sudo ufw enable
    ```
 
 3. **定期的なアップデート**
    ```bash
    # システムパッケージの更新
-   sudo dnf update -y
-   
-   # Node.jsパッケージの更新
-   cd /home/alma/homepage
-   npm update
+   sudo apt update && sudo apt upgrade -y
+
+   # Bunパッケージの更新
+   cd /home/ubuntu/website-yupika/yupika.dilettantegames.com-site
+   ~/.bun/bin/bun update
    cd u-rei
-   bun update
+   ~/.bun/bin/bun update
    ```
 
 ## バックアップ
@@ -630,8 +600,8 @@ HTTPS化後、Google OAuthのリダイレクトURIを更新する必要があり
 # backup.sh
 
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/home/alma/backups"
-DB_PATH="/home/alma/homepage/u-rei/data/u-rei.db"
+BACKUP_DIR="/home/ubuntu/backups"
+DB_PATH="/home/ubuntu/website-yupika/yupika.dilettantegames.com-site/u-rei/data/u-rei.db"
 
 mkdir -p $BACKUP_DIR
 cp $DB_PATH $BACKUP_DIR/u-rei_${DATE}.db
@@ -648,7 +618,7 @@ find $BACKUP_DIR -name "u-rei_*.db" -mtime +7 -delete
 crontab -e
 
 # 毎日午前3時にバックアップ
-0 3 * * * /home/alma/homepage/backup.sh
+0 3 * * * /home/ubuntu/website-yupika/yupika.dilettantegames.com-site/backup.sh
 ```
 
 ## まとめ
@@ -666,7 +636,7 @@ crontab -e
 
 問題が発生した場合は、まずログを確認してください：
 ```bash
-sudo journalctl -u svelte-homepage.service -n 100 --no-pager
+sudo journalctl -u homepage.service -n 100 --no-pager
 ```
 
 それでも解決しない場合は、トラブルシューティングセクションを参照してください。

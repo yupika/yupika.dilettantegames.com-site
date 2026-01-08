@@ -1,5 +1,5 @@
 #!/bin/bash
-export PATH="/home/alma/.bun/bin:$PATH"
+export PATH="/home/ubuntu/.bun/bin:$PATH"
 export NODE_ENV=production
-cd /home/alma/homepage
+cd /home/ubuntu/website-yupika/yupika.dilettantegames.com-site
 exec ~/.bun/bin/bun server.js

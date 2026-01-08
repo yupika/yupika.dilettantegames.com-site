@@ -1,4 +1,3 @@
-import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { mkdirSync, existsSync } from 'fs';
@@ -15,16 +14,23 @@ if (!existsSync(dbDir)) {
 	mkdirSync(dbDir, { recursive: true });
 }
 
-export const db = new Database(DATABASE_PATH);
+// Bunランタイムでのみbun:sqliteを使用
+let Database;
+if (typeof Bun !== 'undefined') {
+	const bunSqlite = await import('bun:sqlite');
+	Database = bunSqlite.Database;
+}
+
+export const db = Database ? new Database(DATABASE_PATH, { create: true }) : null;
 
 // データベース初期化
 export function initDatabase() {
 	// WALモード有効化（パフォーマンス向上）
-	db.exec('PRAGMA journal_mode = WAL;');
-	db.exec('PRAGMA foreign_keys = ON;');
+	db.run('PRAGMA journal_mode = WAL;');
+	db.run('PRAGMA foreign_keys = ON;');
 
 	// ユーザーテーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
 			google_id TEXT UNIQUE NOT NULL,
@@ -37,7 +43,7 @@ export function initDatabase() {
 	`);
 
 	// 投稿テーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS posts (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id),
@@ -53,7 +59,7 @@ export function initDatabase() {
 	`);
 
 	// 内部リンクテーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS links (
 			id TEXT PRIMARY KEY,
 			from_type TEXT NOT NULL CHECK (from_type IN ('post', 'page', 'comment')),
@@ -67,7 +73,7 @@ export function initDatabase() {
 	`);
 
 	// つぶやき→日記の関連テーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS diary_sources (
 			diary_id TEXT NOT NULL REFERENCES posts(id),
 			tweet_id TEXT NOT NULL REFERENCES posts(id),
@@ -76,7 +82,7 @@ export function initDatabase() {
 	`);
 
 	// コメントテーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS comments (
 			id TEXT PRIMARY KEY,
 			post_id TEXT NOT NULL REFERENCES posts(id),
@@ -88,7 +94,7 @@ export function initDatabase() {
 	`);
 
 	// リアクションテーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS reactions (
 			id TEXT PRIMARY KEY,
 			post_id TEXT NOT NULL REFERENCES posts(id),
@@ -100,7 +106,7 @@ export function initDatabase() {
 	`);
 
 	// カスタム絵文字テーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS custom_emojis (
 			id TEXT PRIMARY KEY,
 			shortcode TEXT UNIQUE NOT NULL,
@@ -111,7 +117,7 @@ export function initDatabase() {
 	`);
 
 	// 招待リンクテーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS invites (
 			id TEXT PRIMARY KEY,
 			code TEXT UNIQUE NOT NULL,
@@ -123,7 +129,7 @@ export function initDatabase() {
 	`);
 
 	// 独立ページテーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS pages (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL REFERENCES users(id),
@@ -141,7 +147,7 @@ export function initDatabase() {
 	`);
 
 	// サイト設定テーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS settings (
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL
@@ -149,7 +155,7 @@ export function initDatabase() {
 	`);
 
 	// 閲覧記録テーブル
-	db.exec(`
+	db.run(`
 		CREATE TABLE IF NOT EXISTS post_views (
 			post_id TEXT NOT NULL REFERENCES posts(id),
 			user_id TEXT,
@@ -159,7 +165,7 @@ export function initDatabase() {
 	`);
 
 	// 全文検索用FTSテーブル
-	db.exec(`
+	db.run(`
 		CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
 			title, content, tokenize='trigram'
 		);
@@ -187,9 +193,11 @@ function createIndexes() {
 	];
 
 	for (const index of indexes) {
-		db.exec(index);
+		db.run(index);
 	}
 }
 
-// 初回起動時にデータベースを初期化
-initDatabase();
+// ビルド時ではなくランタイムでのみ初期化
+if (typeof Bun !== 'undefined') {
+	initDatabase();
+}
