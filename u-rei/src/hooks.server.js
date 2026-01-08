@@ -1,7 +1,14 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import Google from '@auth/core/providers/google';
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, AUTH_SECRET } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
+
+// 管理者メールアドレスリスト（カンマ区切り）
+const adminEmails = (env.ADMIN_EMAILS || '')
+	.split(',')
+	.map(e => e.trim().toLowerCase())
+	.filter(Boolean);
 
 export const { handle } = SvelteKitAuth({
 	providers: [
@@ -23,12 +30,26 @@ export const { handle } = SvelteKitAuth({
 				if (!existingUser) {
 					// 新規ユーザーを作成
 					const userId = crypto.randomUUID();
-					db.prepare(
-						`INSERT INTO users (id, google_id, name, icon, status)
-						 VALUES (?, ?, ?, ?, 'pending')`
-					).run(userId, profile.sub, profile.name, profile.picture);
+					const email = profile.email?.toLowerCase() || '';
+					const isAdmin = adminEmails.includes(email);
 
-					console.log('New user registered:', profile.email);
+					db.prepare(
+						`INSERT INTO users (id, google_id, name, icon, role, status)
+						 VALUES (?, ?, ?, ?, ?, ?)`
+					).run(
+						userId,
+						profile.sub,
+						profile.name,
+						profile.picture,
+						isAdmin ? 'admin' : 'member',
+						isAdmin ? 'active' : 'pending'
+					);
+
+					if (isAdmin) {
+						console.log('Admin user registered:', profile.email);
+					} else {
+						console.log('New user registered:', profile.email);
+					}
 				}
 			}
 			return true;

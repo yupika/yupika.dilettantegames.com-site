@@ -1,9 +1,19 @@
 <script>
 	import { signIn } from '@auth/sveltekit/client';
 	import { page } from '$app/stores';
+	import { base } from '$app/paths';
 
 	let { data } = $props();
 	const session = $derived(data.session);
+
+	function getStatusText(status) {
+		switch (status) {
+			case 'active': return 'アクティブ';
+			case 'pending': return '承認待ち';
+			case 'banned': return 'バンされています';
+			default: return '不明';
+		}
+	}
 </script>
 
 <svelte:head>
@@ -15,9 +25,9 @@
 		<div class="logged-in">
 			<h1>ログイン済み</h1>
 			<p>ようこそ、{session.user?.name}さん</p>
-			<p>ステータス: {session.user?.status === 'active' ? 'アクティブ' : session.user?.status === 'pending' ? '承認待ち' : 'バンされています'}</p>
+			<p>ステータス: {getStatusText(session.user?.status)}</p>
 			<div class="actions">
-				<a href="/u-rei/" class="btn btn-primary">タイムラインへ</a>
+				<a href="{base}/" class="btn btn-primary">タイムラインへ</a>
 				<form method="post" action="?/signout">
 					<button type="submit" class="btn btn-secondary">ログアウト</button>
 				</form>
@@ -29,7 +39,7 @@
 			<p class="subtitle">みんなで育てる共有の知識空間</p>
 
 			<button
-				onclick={() => signIn('google', { callbackUrl: '/u-rei/' })}
+				onclick={() => signIn('google', { callbackUrl: `${base}/` })}
 				class="google-btn"
 			>
 				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24">

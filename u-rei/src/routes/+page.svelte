@@ -1,5 +1,7 @@
 <script>
 	import { base } from '$app/paths';
+
+	let { data } = $props();
 </script>
 
 <svelte:head>

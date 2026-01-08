@@ -60,9 +60,9 @@ import steamlink from '$lib/monooki/steamlink.png'
 			<h3 id="適用方法">パッチ適用方法（Macは追加で色々あるので後述）</h3>
 			<p>ゲームのパックファイルを差し替えます。<br>
 			Windowsの方は<br>
-			<a href="https://drive.google.com/file/d/1kL_8QlRxc5FGmqtRSkjQ7a5DeRQLzumq/view?usp=sharing">goldenidol_JP.Xdelta</a>  をダウンロード<br>
+			<a href="/files/goldenidol/goldenidol_JP.xdelta">goldenidol_JP.Xdelta</a>  をダウンロード<br>
 			Macの方は<br>
-			<a href="https://drive.google.com/file/d/1nVfOK0U_1H_EwL0pJeEDRok4Q8bpu3y2/view?usp=sharing">goldenidol_JP_MAC.xdelta</a>  をダウンロード<br>
+			<a href="/files/goldenidol/goldenidol_JP_MAC.xdelta">goldenidol_JP_MAC.xdelta</a>  をダウンロード<br>
 
 			Steamのライブラリで右クリック→管理→ローカルファイルを閲覧をクリック<br>
 				<picture>
